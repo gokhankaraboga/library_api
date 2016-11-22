@@ -14,18 +14,28 @@ def index(request):
 @csrf_exempt
 def book(request, bid=None):
     if request.method == "GET":
-        liste = []
-        if not bid:
-            for obj in Book.objects.all():
-                liste.append(obj.title)
+        title_parameter = request.GET.get('title')
+        liste = list()
 
-            return JsonResponse({'liste': liste})
-        else:
+        if bid:
             title = str(Book.objects.get(pk=bid).title)
             for a in Book.objects.get(title=title).authors.all():
                 liste.append(a.name + ' ' + a.surname)
 
-            return JsonResponse({'liste': liste})
+            return JsonResponse({'title': title, 'liste': liste})
+
+        else:
+            if title_parameter:
+                book_obj = Book.objects.get(title=title_parameter)
+                for a in book_obj.authors.all():
+                    liste.append(a.name + ' ' + a.surname)
+
+                return JsonResponse({'title': book_obj.title, 'liste': liste})
+            else:
+                for obj in Book.objects.all():
+                    liste.append(obj.title)
+
+                return JsonResponse({'liste': liste})
 
     elif request.method == "POST":
         database_tmp = {'title': request.POST.get('title'),
@@ -51,15 +61,33 @@ def book(request, bid=None):
 @csrf_exempt
 def author(request, bid=None):
     if request.method == "GET":
+        name_parameter = request.GET.get('name')
+        surname_parameter = request.GET.get('surname')
         if not bid:
-            name_list = list()
-            for obj in Author.objects.all():
-                name_list.append(obj.name + " " + obj.surname)
-            return JsonResponse({'name_list': name_list})
+            if name_parameter and surname_parameter:
+                author_obj = Author.objects.get(name=name_parameter,
+                                                surname=surname_parameter)
+                full_name = author_obj.name + " " + author_obj.surname
+                return JsonResponse({'full_name': full_name})
+
+            elif name_parameter:
+                author_obj = Author.objects.get(name=name_parameter)
+                full_name = author_obj.name + " " + author_obj.surname
+                return JsonResponse({'full_name': full_name})
+            elif surname_parameter:
+                author_obj = Author.objects.get(surname=surname_parameter)
+                full_name = author_obj.name + " " + author_obj.surname
+                return JsonResponse({'full_name': full_name})
+            else:
+                name_list = list()
+                for obj in Author.objects.all():
+                    name_list.append(obj.name + " " + obj.surname)
+                return JsonResponse({'name_list': name_list})
+
         else:
-            name = Author.objects.get(pk=bid).name + Author.objects.get(
-                pk=bid).surname
-            return JsonResponse({'name': name})
+            author_obj = Author.objects.get(pk=bid)
+            full_name = author_obj.name + " " + author_obj.surname
+            return JsonResponse({'full_name': full_name})
 
     elif request.method == "POST":
         database_tmp = {'name': request.POST.get("name"),
