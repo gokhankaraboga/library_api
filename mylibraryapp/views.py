@@ -1,14 +1,43 @@
 from django.shortcuts import render
 import requests
+import json
 from mylibraryapp.models import Author, Book
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+import csv
 
 
 # Create your views here.
 
 def index(request):
     return HttpResponse("<h1>Hey</h1>")
+
+
+@csrf_exempt
+def library(request):
+    if request.method == "POST":
+        Book.objects.all().delete()
+        Author.objects.all().delete()
+
+        csv_file = csv.reader(request.FILES['upload_file'], delimiter=',',
+                              quotechar='"')
+        for data in csv_file:
+            tmp_book_dict = {'title': data[0],
+                             'lc_classification': data[1]}
+
+            book_obj = Book.objects.create(**tmp_book_dict)
+
+            for i in xrange(0, len(data[2:]), 3):
+                tmp_author_dict = {'name': data[2:][i],
+                                   'surname': data[2:][i + 1],
+                                   'date_of_birth': data[2:][i + 2]}
+                author_obj = Author.objects.create(**tmp_author_dict)
+                book_obj.authors.add(Author.objects.get(pk=author_obj.id))
+
+    elif request.method == "PATCH":
+        pass
+
+    return HttpResponse("<p>Surungenler Sehri</p>")
 
 
 @csrf_exempt
@@ -49,12 +78,26 @@ def book(request, bid=None):
                                       surname=item.split(' ')[1]).id
             my_obj.authors.add(Author.objects.get(pk=rank))
 
-    elif request.method == "PATCH":
-        print 'patch calisti!'
+    elif bid and request.method == "PATCH":
+        update_dict = json.loads(request.body)
+        authors = update_dict.get('authors', None)
+        update_dict.pop('authors', None)
+        if authors:
+            book_obj = Book.objects.filter(pk=bid)
+            book_obj.update(**update_dict)
+            # !!!!!!!!!!!!!!book_obj.authors.remove()!!!!!!!!!!!!!
+            for item in authors.split(','):
+                rank = Author.objects.get(name=item.split(' ')[0],
+                                          surname=item.split(' ')[1]).id
+                book_obj.authors.add(Author.objects.get(pk=rank))
+        else:
+            Book.objects.filter(pk=bid).update(**update_dict)
 
-    elif request.method == "PUT":
+    elif bid and request.method == "PUT":
         print 'Put calisti'
 
+    else:
+        print 'olmadi'
     return HttpResponse("<h1>Hey</h1>")
 
 
@@ -98,8 +141,11 @@ def author(request, bid=None):
 
         return HttpResponse("<p>abc</p>")
 
-    elif request.method == "PUT":
+    elif bid and request.method == "PUT":
         pass
 
-    elif request.method == "PATCH":
-        pass
+    elif bid and request.method == "PATCH":
+        update_dict = json.loads(request.body)
+        Author.objects.filter(pk=bid).update(**update_dict)
+
+        return HttpResponse("<p>abc</p>")
