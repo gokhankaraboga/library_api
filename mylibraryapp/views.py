@@ -31,11 +31,56 @@ def library(request):
                 tmp_author_dict = {'name': data[2:][i],
                                    'surname': data[2:][i + 1],
                                    'date_of_birth': data[2:][i + 2]}
-                author_obj = Author.objects.create(**tmp_author_dict)
+                if not Author.objects.filter(name=tmp_author_dict['name'],
+                                             surname=tmp_author_dict[
+                                                 'surname']).exists():
+                    author_obj = Author.objects.create(**tmp_author_dict)
+
+                else:
+                    author_obj = Author.objects.get(
+                        name=tmp_author_dict['name'],
+                        surname=tmp_author_dict['surname'])
+
                 book_obj.authors.add(Author.objects.get(pk=author_obj.id))
 
     elif request.method == "PATCH":
-        pass
+        content = request.body.split('\n')[4:-3]
+        book_list = [x.split(',') for x in content]
+
+        with open('/Users/gokhankaraboga/Desktop/new_books.csv', 'wb')as f:
+            writer = csv.writer(f, delimiter=',')
+            writer.writerows(x.split(',') for x in content)
+            f.close()
+
+        for book in book_list:
+            tmp_book_dict = {'title': book[0],
+                             'lc_classification': book[1]}
+            if not Book.objects.filter(title=tmp_book_dict['title']).exists():
+                book_obj = Book.objects.create(**tmp_book_dict)
+            else:
+                book_obj = Book.objects.get(title=tmp_book_dict['title'])
+
+            for i in xrange(0, len(book[2:]), 3):
+                tmp_author_dict = {'name': book[2:][i],
+                                   'surname': book[2:][i + 1],
+                                   'date_of_birth': book[2:][i + 2]}
+
+                if not Author.objects.filter(name=tmp_author_dict['name'],
+                                             surname=tmp_author_dict[
+                                                 'surname']).exists():
+                    author_obj = Author.objects.create(**tmp_author_dict)
+
+                    if not Book.objects.filter(pk=book_obj.pk,
+                                               authors__pk=author_obj.pk).exists():
+                        book_obj.authors.add(author_obj.id)
+                else:
+                    author_obj = Author.objects.get(
+                        name=tmp_author_dict['name'],
+                        surname=tmp_author_dict[
+                            'surname'])
+                    if not Book.objects.filter(pk=book_obj.pk,
+                                               authors__pk=author_obj.pk).exists():
+                        book_obj.authors.add(author_obj.id)
 
     return HttpResponse("<p>Surungenler Sehri</p>")
 
@@ -85,11 +130,11 @@ def book(request, bid=None):
         if authors:
             book_obj = Book.objects.filter(pk=bid)
             book_obj.update(**update_dict)
-            # !!!!!!!!!!!!!!book_obj.authors.remove()!!!!!!!!!!!!!
+            book_obj[0].authors.clear()
             for item in authors.split(','):
                 rank = Author.objects.get(name=item.split(' ')[0],
                                           surname=item.split(' ')[1]).id
-                book_obj.authors.add(Author.objects.get(pk=rank))
+                book_obj[0].authors.add(Author.objects.get(pk=rank))
         else:
             Book.objects.filter(pk=bid).update(**update_dict)
 
@@ -98,6 +143,7 @@ def book(request, bid=None):
 
     else:
         print 'olmadi'
+
     return HttpResponse("<h1>Hey</h1>")
 
 
