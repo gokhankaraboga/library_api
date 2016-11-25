@@ -1,9 +1,9 @@
 from django.shortcuts import render
-import requests
 import json
 from mylibraryapp.models import Author, Book
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist
 import csv
 
 
@@ -70,9 +70,7 @@ def library(request):
                                                  'surname']).exists():
                     author_obj = Author.objects.create(**tmp_author_dict)
 
-                    if not Book.objects.filter(pk=book_obj.pk,
-                                               authors__pk=author_obj.pk).exists():
-                        book_obj.authors.add(author_obj.id)
+                    book_obj.authors.add(author_obj.id)
                 else:
                     author_obj = Author.objects.get(
                         name=tmp_author_dict['name'],
@@ -139,7 +137,38 @@ def book(request, bid=None):
             Book.objects.filter(pk=bid).update(**update_dict)
 
     elif bid and request.method == "PUT":
-        print 'Put calisti'
+        update_dict = json.loads(request.body)
+        book_obj = Book.objects.filter(pk=bid)
+
+        if "authors" in update_dict:
+            authors_list = update_dict.pop("authors").split(",")
+
+        book_obj.name = None
+        book_obj.surname = None
+        book_obj[0].authors.clear()
+
+        book_obj.update(**update_dict)
+
+        if authors_list:
+            for i in xrange(0, len(authors_list),3):
+                try:
+                    author_obj = Author.objects.get(name=authors_list[i],
+                                                    surname=authors_list[
+                                                        i + 1],
+                                                    date_of_birth=authors_list[
+                                                        i + 2])
+                except ObjectDoesNotExist:
+                    author_obj = Author.objects.create(name=authors_list[i],
+                                                       surname=authors_list[
+                                                           i + 1],
+                                                       date_of_birth=
+                                                       authors_list[i + 2])
+
+                rank = author_obj.id
+
+                book_obj[0].authors.add(Author.objects.get(pk=rank))
+
+        return HttpResponse("<p>abc</p>")
 
     else:
         print 'olmadi'
@@ -187,11 +216,32 @@ def author(request, bid=None):
 
         return HttpResponse("<p>abc</p>")
 
-    elif bid and request.method == "PUT":
-        pass
-
     elif bid and request.method == "PATCH":
+        author_info = [request.body.split('\n')[i].strip('\r') for i in
+                       xrange(3, len(request.body.split('\n')), 4)]
+
+        key_info = [
+            request.body.split('\n')[i].strip('\r').split(" name=")[1].strip(
+                "\"")
+            for i in xrange(1, len(request.body.split("\n")) - 3, 4)]
+
+        tmp_author_dict = {}
+        for i in xrange(len(key_info)):
+            tmp_author_dict[key_info[i]] = author_info[i]
+
+        author_obj = Author.objects.filter(pk=bid)
+        author_obj.update(**tmp_author_dict)
+
+        return HttpResponse("<h1>Selam</h1>")
+
+    elif bid and request.method == "PUT":
         update_dict = json.loads(request.body)
-        Author.objects.filter(pk=bid).update(**update_dict)
+        author_obj = Author.objects.filter(pk=bid)
+
+        author_obj.name = None
+        author_obj.surname = None
+        author_obj.date_of_birth = None
+
+        author_obj.update(**update_dict)
 
         return HttpResponse("<p>abc</p>")
