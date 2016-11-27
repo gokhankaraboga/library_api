@@ -1,4 +1,3 @@
-from django.shortcuts import render
 import json
 from mylibraryapp.models import Author, Book
 from django.http import HttpResponse, JsonResponse
@@ -6,8 +5,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
 import csv
 
-
-# Create your views here.
 
 def index(request):
     return HttpResponse("<h1>Hey</h1>")
@@ -98,11 +95,14 @@ def book(request, bid=None):
 
         else:
             if title_parameter:
-                book_obj = Book.objects.get(title=title_parameter)
-                for a in book_obj.authors.all():
-                    liste.append(a.name + ' ' + a.surname)
-
-                return JsonResponse({'title': book_obj.title, 'liste': liste})
+                book_obj = Book.objects.filter(
+                    title__icontains=title_parameter)
+                for bk in book_obj:
+                    tmp_dict = {'author_list': [a.name + ' ' + a.surname for a
+                                                in bk.authors.all()],
+                                'title': bk.title}
+                    liste.append(tmp_dict)
+                return JsonResponse({'search_list': liste})
             else:
                 for obj in Book.objects.all():
                     liste.append(obj.title)
@@ -150,7 +150,7 @@ def book(request, bid=None):
         book_obj.update(**update_dict)
 
         if authors_list:
-            for i in xrange(0, len(authors_list),3):
+            for i in xrange(0, len(authors_list), 3):
                 try:
                     author_obj = Author.objects.get(name=authors_list[i],
                                                     surname=authors_list[
@@ -183,18 +183,25 @@ def author(request, bid=None):
         surname_parameter = request.GET.get('surname')
         if not bid:
             if name_parameter and surname_parameter:
-                author_obj = Author.objects.get(name=name_parameter,
-                                                surname=surname_parameter)
-                full_name = author_obj.name + " " + author_obj.surname
+                author_obj = Author.objects.filter(
+                    name__icontains=name_parameter,
+                    surname__icontains=surname_parameter
+                )
+                full_name = [author_obj[i].name + " " + author_obj[i].surname
+                             for i in xrange(author_obj.count())]
                 return JsonResponse({'full_name': full_name})
 
             elif name_parameter:
-                author_obj = Author.objects.get(name=name_parameter)
-                full_name = author_obj.name + " " + author_obj.surname
+                author_obj = Author.objects.filter(
+                    name__icontains=name_parameter)
+                full_name = [author_obj[i].name + " " + author_obj[i].surname
+                             for i in xrange(author_obj.count())]
                 return JsonResponse({'full_name': full_name})
             elif surname_parameter:
-                author_obj = Author.objects.get(surname=surname_parameter)
-                full_name = author_obj.name + " " + author_obj.surname
+                author_obj = Author.objects.filter(
+                    surname__icontains=surname_parameter)
+                full_name = [author_obj[i].name + " " + author_obj[i].surname
+                             for i in xrange(author_obj.count())]
                 return JsonResponse({'full_name': full_name})
             else:
                 name_list = list()
